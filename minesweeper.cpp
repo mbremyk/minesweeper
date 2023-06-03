@@ -37,7 +37,6 @@ int main() {
     case NONE:
     default:
       int rev = board.reveal(first, last);
-      printf("%d\n", rev);
       if (rev < 0) {
         std::cout << "Boom you ded" << std::endl;
         std::cout << board.to_string(true) << std::endl;
@@ -51,6 +50,19 @@ int main() {
         board.populate_mines(mines);
       }
       break;
+    }
+
+    if (board.check_win()) {
+      std::cout << "Nice, you diddely-did it" << std::endl;
+      std::cout << board.to_string(true) << std::endl;
+      std::cout << "Width: ";
+      std::cin >> width;
+      std::cout << "Height: ";
+      std::cin >> height;
+      std::cout << "Mines: ";
+      std::cin >> mines;
+      board.init(width, height);
+      board.populate_mines(mines);
     }
 
     std::cout << board.to_string() << std::endl;

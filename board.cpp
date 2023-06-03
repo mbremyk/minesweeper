@@ -161,6 +161,18 @@ public:
     return true;
   }
 
+  bool check_win() {
+    for (auto y = 0; y < m_height; ++y) {
+      for (auto x = 0; x < m_width; ++x) {
+        if (m_board[y][x] < 0 && m_state[y][x] != FLAGGED)
+          return false;
+        if (m_board[y][x] >= 0 && m_state[y][x] == FLAGGED)
+          return false;
+      }
+    }
+    return true;
+  }
+
   std::string to_string(bool revealed = false) {
     int indent = std::floor(std::log10(m_height));
     int top_indent = indent;
