@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <ctime>
+#ifndef NO_JSON
 #include <jsoncpp/json/json.h>
+#endif
 #include <numeric>
 #include <random>
 #include <string>
@@ -254,6 +256,8 @@ public:
     return o;
   }
 
+#ifndef NO_JSON
+
   Json::Value to_json(bool revealed = false) {
     Json::Value out;
     out["width"] = m_width;
@@ -281,3 +285,5 @@ public:
     return Json::writeString(builder, to_json(revealed));
   }
 };
+
+#endif

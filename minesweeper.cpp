@@ -1,6 +1,8 @@
 #include "board.cpp"
 #include <iostream>
 
+#define NO_JSON
+
 enum flag_ops { NONE, SET, UNSET };
 
 int main() {
