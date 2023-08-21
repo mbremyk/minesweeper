@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <ctime>
+#include <jsoncpp/json/json.h>
 #include <numeric>
 #include <random>
 #include <string>
@@ -161,6 +162,21 @@ public:
     return true;
   }
 
+  bool flag(int x, int y) {
+    if (m_state[y][x] != REVEALED) {
+      m_state[y][x] = (state)!m_state[y][x];
+      return false;
+    }
+    return true;
+  }
+
+  int at(int x, int y, bool revealed = false) {
+    if (revealed || m_state[y][x] == REVEALED) {
+      return m_board[y][x];
+    }
+    return -2;
+  }
+
   bool check_win() {
     for (auto y = 0; y < m_height; ++y) {
       for (auto x = 0; x < m_width; ++x) {
@@ -211,7 +227,7 @@ public:
       for (auto j = 0; j < m_width; ++j) {
         auto val = row.at(j);
 
-        if(revealed || (m_state[i][j] == REVEALED)) {
+        if (revealed || (m_state[i][j] == REVEALED)) {
           o += val < 0 ? "" : " ";
           o += std::to_string(val);
           o += " ";
@@ -236,5 +252,32 @@ public:
     }
     o += BOTTOM_RIGHT_CORNER;
     return o;
+  }
+
+  Json::Value to_json(bool revealed = false) {
+    Json::Value out;
+    out["width"] = m_width;
+    out["height"] = m_height;
+
+    for (auto i = 0; i < m_height; ++i) {
+      Json::Value row;
+      for (auto j = 0; j < m_width; ++j) {
+        if (revealed || (m_state[i][j] == REVEALED)) {
+          row[j] = m_board[i][j];
+        } else if (m_state[i][j] == FLAGGED) {
+          row[j] = "🚩";
+        } else {
+          row[j] = "";
+        }
+      }
+      out["board"][i] = row;
+    }
+
+    return out;
+  }
+
+  std::string to_json_string(bool revealed = false) {
+    Json::StreamWriterBuilder builder;
+    return Json::writeString(builder, to_json(revealed));
   }
 };

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Test</title>
+    <style>
+        * {
+            box-sizing: border-box
+        }
+
+        .board_cell {
+            width: 2em;
+            height: 2em;
+            display: inline-block;
+            border: solid #000;
+            border-width: 1px;
+            background-color: lightgrey;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .board_cell:hover {
+            background-color: grey;
+        }
+
+        .board {
+            margin: 0;
+            padding: 0;
+        }
+
+        table#board {
+            table-layout: auto;
+            width: 100%;
+            padding: 0;
+            margin: 0;
+            border-spacing: 0;
+
+            * {
+                padding: 0;
+                margin: 0;
+            }
+        }
+    </style>
+    <script>
+        let url = 'http://localhost:8080/';
+        let board;
+
+        let httpPostAsync = (url, body, callback) => {
+            let xmlHttp = new XMLHttpRequest();
+            xmlHttp.onreadystatechange = () => {
+                if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+                    callback(xmlHttp.response);
+            };
+            xmlHttp.open('PUT', url, true);
+            xmlHttp.responseType = 'json';
+            xmlHttp.send(JSON.stringify(body));
+        };
+
+        let onBoardCellLeftClick = e => {
+            e.preventDefault();
+            let x = e.target.getAttribute('x');
+            let y = e.target.getAttribute('y');
+            httpPostAsync(url + 'reveal', {
+                'x': x,
+                'y': y
+            }, (res) => {
+                let cell = e.target;
+                cell.innerHTML = res.value;
+            });
+        };
+
+        let onBoardCellRightClick = e => {
+            e.preventDefault();
+            let x = e.target.getAttribute('x');
+            let y = e.target.getAttribute('y');
+            httpPostAsync(url + 'flag', {
+                'x': x,
+                'y': y
+            }, (res) => {
+                let cell = e.target;
+                cell.innerHTML = res.board[y][x];
+            });
+        };
+
+        let createNewBoard = () => {
+            let width = document.getElementById('width').value;
+            let height = document.getElementById('height').value;
+            let mines = document.getElementById('mines').value;
+            httpPostAsync(url + 'new', {
+                'height': height,
+                'width': width,
+                'mines': mines
+            }, (res) => {
+                let board_body = board.tBodies[0];
+                board_body.innerHTML = '';
+                for (let rows = 0; rows < res.height; ++rows) {
+                    let row = document.createElement('tr');
+                    for (let cols = 0; cols < res.width; ++cols) {
+                        let cell = document.createElement('td');
+                        let button = document.createElement('div');
+                        button.setAttribute('x', cols);
+                        button.setAttribute('y', rows);
+                        button.classList.add('board_cell');
+                        button.classList.add('board');
+                        button.addEventListener('click', onBoardCellLeftClick);
+                        button.addEventListener('contextmenu', onBoardCellRightClick);
+                        cell.appendChild(button);
+                        cell.classList.add('board');
+                        row.appendChild(cell);
+                        row.classList.add('board');
+                    }
+                    board_body.appendChild(row);
+                }
+            });
+        };
+
+        window.onload = () => {
+            board = document.getElementById('board');
+            createNewBoard(5, 5, 5);
+        }
+    </script>
+</head>
+
+<body>
+    <h1>Mineseweper</h1>
+    <table>
+        <tbody>
+            <tr>
+                <td>
+                    <table id='board'>
+                        <tbody>
+
+                        </tbody>
+                    </table>
+                </td>
+                <td>
+                    <table>
+                        <tbody>
+                            <tr>
+                                <td>Width:</td>
+                                <td><input type='number' min='0' value='5' id="width" /></td>
+                            </tr>
+                            <tr>
+                                <td>Height:</td>
+                                <td><input type='number' min='0' value='5' id="height" /></td>
+                            </tr>
+                            <tr>
+                                <td>Mines:</td>
+                                <td><input type='number' min='0' value='5' id="mines" /></td>
+                            </tr>
+                            <tr>
+                                <td colspan="2">
+                                    <button style="width:100%;height:100%;" onclick="createNewBoard()">New</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</body>
+
+</html>
