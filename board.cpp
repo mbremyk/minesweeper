@@ -15,6 +15,7 @@
 #define BOTTOM_LEFT_CORNER "┗"
 #define BOTTOM_RIGHT_CORNER "┛"
 #define MAX_SIZE 62
+#define BOMB -1
 
 class Board {
 public:
@@ -76,6 +77,14 @@ public:
   bool init(int size) { return set_size(size) || init(); }
   bool init(int width, int height) { return set_size(width, height) || init(); }
 
+  /**
+   * Fill the board with min(amount, (width-1) * (height-1)) randomly places
+   * bombs. Represent bombs as -1 in the board.
+   *
+   * @param amount The amount of bombs to put on the board
+   * @return true Something went wrong
+   * @return false Bombs were populated
+   */
   bool populate_mines(int amount) {
     std::vector<int> temp(m_width * m_height);
     std::iota(temp.begin(), temp.end(), 0);
@@ -86,10 +95,11 @@ public:
     while (i < amount && temp.size() > 0) {
       auto pos = temp.back();
       temp.pop_back();
-      m_board[pos / m_width][pos % m_width] = -1;
+      m_board[pos / m_width][pos % m_width] = BOMB;
       ++i;
     }
 
+    // Fill in proximity numbers for the board.
     for (auto y = 0; y < m_height; ++y) {
       for (auto x = 0; x < m_width; ++x) {
         if (m_board[y][x] < 0)
@@ -230,8 +240,12 @@ public:
         auto val = row.at(j);
 
         if (revealed || (m_state[i][j] == REVEALED)) {
-          o += val < 0 ? "" : " ";
-          o += std::to_string(val);
+          if (val < 0) {
+            o += "💣";
+          } else {
+            o += " ";
+            o += std::to_string(val);
+          }
           o += " ";
         } else if (m_state[i][j] == FLAGGED) {
           o += " 🚩";
@@ -267,7 +281,11 @@ public:
       Json::Value row;
       for (auto j = 0; j < m_width; ++j) {
         if (revealed || (m_state[i][j] == REVEALED)) {
-          row[j] = m_board[i][j];
+          if (m_board[i][j] < 0) {
+            row[j] = "💣";
+          } else {
+            row[j] = m_board[i][j];
+          }
         } else if (m_state[i][j] == FLAGGED) {
           row[j] = "🚩";
         } else {

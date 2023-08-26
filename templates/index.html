@@ -14,20 +14,31 @@
             display: inline-block;
             border: solid #000;
             border-width: 1px;
-            background-color: lightgrey;
             text-align: center;
             display: flex;
             justify-content: center;
             align-items: center;
         }
 
-        .board_cell:hover {
-            background-color: grey;
-        }
-
         .board {
             margin: 0;
             padding: 0;
+        }
+
+        .non_exploded {
+            background-color: lightgrey;
+        }
+
+        .non_exploded:hover {
+            background-color: grey;
+        }
+
+        .exploded {
+            background-color: red;
+        }
+
+        .exploded:hover {
+            background-color: rgb(214, 0, 0);
         }
 
         table#board {
@@ -46,6 +57,29 @@
     <script>
         let url = 'http://localhost:8080/';
         let board;
+        let playing = false;
+        const winState = {
+            LOSS: -1,
+            NONE: 0,
+            WIN: 1
+        };
+        let colourIntervalID = 0;
+
+        let colourSplash = (cells) => {
+            playing = false;
+            let reps = 100;
+            let x = 0;
+            intervalID = setInterval(() => {
+                cells.forEach(cell => {
+                    cell.classList.remove('non_exploded');
+                    cell.style.backgroundColor = `rgb(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)})`;
+                });
+                if (++x >= reps) {
+                    clearInterval(colourIntervalID);
+                    colourIntervalID = 0;
+                }
+            }, 100);
+        };
 
         let httpPostAsync = (url, body, callback) => {
             let xmlHttp = new XMLHttpRequest();
@@ -60,31 +94,54 @@
 
         let onBoardCellLeftClick = e => {
             e.preventDefault();
+            if (!playing) return;
+            let cell = e.target;
+            if (e.target.innerHTML) return;
             let x = e.target.getAttribute('x');
             let y = e.target.getAttribute('y');
             httpPostAsync(url + 'reveal', {
                 'x': x,
                 'y': y
             }, (res) => {
-                let cell = e.target;
-                cell.innerHTML = res.value;
+                let response_board = res.board;
+                let cells = [...board.getElementsByClassName('board_cell')];
+                cells.forEach(cell => {
+                    cell.innerHTML = response_board[cell.getAttribute('y')][cell.getAttribute('x')];
+                });
+                if (res.win_state == winState.LOSS) {
+                    playing = false;
+                    cell.classList.remove('non_exploded');
+                    cell.classList.add('exploded');
+                } else if (res.win_state == winState.WIN) {
+                    colourSplash(cells);
+                }
             });
         };
 
         let onBoardCellRightClick = e => {
             e.preventDefault();
-            let x = e.target.getAttribute('x');
-            let y = e.target.getAttribute('y');
-            httpPostAsync(url + 'flag', {
-                'x': x,
-                'y': y
-            }, (res) => {
-                let cell = e.target;
-                cell.innerHTML = res.board[y][x];
-            });
+            if (!playing) return;
+            if (!e.target.innerHTML || isNaN(e.target.innerHTML)) {
+                let x = e.target.getAttribute('x');
+                let y = e.target.getAttribute('y');
+                httpPostAsync(url + 'flag', {
+                    'x': x,
+                    'y': y
+                }, (res) => {
+                    let response_board = res.board;
+                    let cells = [...board.getElementsByClassName('board_cell')];
+                    cells.forEach(cell => {
+                        cell.innerHTML = response_board[cell.getAttribute('y')][cell.getAttribute('x')];
+                    });
+                    if (res.win_state == winState.WIN) {
+                        colourSplash(cells);
+                    }
+                });
+            }
         };
 
         let createNewBoard = () => {
+            if(colourIntervalID)clearInterval(colourIntervalID);
             let width = document.getElementById('width').value;
             let height = document.getElementById('height').value;
             let mines = document.getElementById('mines').value;
@@ -93,8 +150,7 @@
                 'width': width,
                 'mines': mines
             }, (res) => {
-                let board_body = board.tBodies[0];
-                board_body.innerHTML = '';
+                board.innerHTML = '';
                 for (let rows = 0; rows < res.height; ++rows) {
                     let row = document.createElement('tr');
                     for (let cols = 0; cols < res.width; ++cols) {
@@ -104,6 +160,7 @@
                         button.setAttribute('y', rows);
                         button.classList.add('board_cell');
                         button.classList.add('board');
+                        button.classList.add('non_exploded');
                         button.addEventListener('click', onBoardCellLeftClick);
                         button.addEventListener('contextmenu', onBoardCellRightClick);
                         cell.appendChild(button);
@@ -111,13 +168,14 @@
                         row.appendChild(cell);
                         row.classList.add('board');
                     }
-                    board_body.appendChild(row);
+                    board.appendChild(row);
                 }
+                playing = true;
             });
         };
 
         window.onload = () => {
-            board = document.getElementById('board');
+            board = document.getElementById('board').tBodies[0];
             createNewBoard(5, 5, 5);
         }
     </script>

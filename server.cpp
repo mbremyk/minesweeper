@@ -1,11 +1,14 @@
 #include "board.cpp"
 #include "crow.h"
+#include <unordered_map>
 
-Board *board;
+std::unordered_map<std::string, Board *> boards;
 
 std::string json_to_string(Json::Value json);
 Json::Value body_to_json(std::string body);
 bool is_number(std::string s);
+
+enum win_state { LOSS = -1, NONE = 0, WIN = 1 };
 
 int main() {
   crow::SimpleApp app;
@@ -19,6 +22,9 @@ int main() {
   CROW_ROUTE(app, "/new")
       .methods(
           crow::HTTPMethod::PUT)([](crow::request &req, crow::response &res) {
+        std::string ip = req.remote_ip_address;
+        Board *board = nullptr;
+
         Json::Value request_body = body_to_json(req.body);
         int width =
             request_body["width"] ? atoi(request_body["width"].asCString()) : 0;
@@ -30,11 +36,12 @@ int main() {
         int mines =
             request_body["mines"] ? atoi(request_body["mines"].asCString()) : 0;
         if (width && height) {
-          board = new Board(width, height);
+          board = boards.insert_or_assign(ip, new Board(width, height))
+                      .first->second;
         } else if (size) {
-          board = new Board(size);
+          board = boards.insert_or_assign(ip, new Board(size)).first->second;
         } else {
-          board = new Board();
+          board = boards.insert_or_assign(ip, new Board()).first->second;
         }
         if (!board) {
           res.code = crow::INTERNAL_SERVER_ERROR;
@@ -49,7 +56,9 @@ int main() {
   CROW_ROUTE(app, "/reveal")
       .methods(
           crow::HTTPMethod::PUT)([](crow::request &req, crow::response &res) {
-        assert(board);
+        std::string ip = req.remote_ip_address;
+        assert(boards.contains(ip));
+        Board *board = boards.at(ip);
 
         Json::Value request_body = body_to_json(req.body);
         int x = request_body["x"] ? atoi(request_body["x"].asCString()) : -1;
@@ -62,10 +71,13 @@ int main() {
         }
         Json::Value response_body;
         response_body["revealed"] = board->reveal(x, y);
-        response_body["value"] = board->at(x, y);
+        int value = board->at(x, y);
+        response_body["value"] = value;
         response_body["x"] = x;
         response_body["y"] = y;
-        Json::Value jboard = board->to_json(false);
+        win_state w = board->check_win() ? WIN : (value < 0 ? LOSS : NONE);
+        response_body["win_state"] = w;
+        Json::Value jboard = board->to_json(!!w);
         response_body["board"] = jboard["board"];
         response_body["width"] = jboard["width"];
         response_body["height"] = jboard["height"];
@@ -76,7 +88,10 @@ int main() {
   CROW_ROUTE(app, "/flag")
       .methods(
           crow::HTTPMethod::PUT)([](crow::request &req, crow::response &res) {
-        assert(board);
+        std::string ip = req.remote_ip_address;
+        assert(boards.contains(ip));
+        Board *board = boards.at(ip);
+
         Json::Value request_body = body_to_json(req.body);
         int x = request_body["x"] ? atoi(request_body["x"].asCString()) : -1;
         int y = request_body["y"] ? atoi(request_body["y"].asCString()) : -1;
@@ -89,7 +104,9 @@ int main() {
         response_body["flagged"] = !board->flag(x, y);
         response_body["x"] = x;
         response_body["y"] = y;
-        Json::Value jboard = board->to_json(false);
+        win_state w = board->check_win() ? WIN : NONE;
+        response_body["win_state"] = w;
+        Json::Value jboard = board->to_json(!!w);
         response_body["board"] = jboard["board"];
         response_body["width"] = jboard["width"];
         response_body["height"] = jboard["height"];
@@ -98,10 +115,13 @@ int main() {
       });
 
   CROW_ROUTE(app, "/print")
-  ([]() {
-    assert(board);
+  ([](crow::request &req, crow::response &res) {
+    std::string ip = req.remote_ip_address;
+    assert(boards.contains(ip));
+    Board *board = boards.at(ip);
     printf("%s\n", board->to_string(true).c_str());
-    return crow::status::OK;
+    res.code = crow::OK;
+    res.end();
   });
 
   app.port(8080).multithreaded().run();
